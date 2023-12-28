@@ -18,19 +18,6 @@ username=$(echo "$email_address" | cut -d'@' -f1)
 read -s -p "Enter password for MariaDB: " mariadb_password
 echo # Move to the next line
 
-# Step 3: Fetch the latest versions of software packages
-# Fetch MariaDB version
-mariadb_latest_version=$(curl -sSL https://downloads.mariadb.org/mariadb/repositories/ | grep "MariaDB Server" | awk -F'[<|>]' '{print $3}')
-
-# Fetch PHP version
-php_latest_version=$(curl -sSL https://www.php.net/downloads.php | grep "PHP 8" | grep -oP 'PHP 8\.\d+\.\d+' | head -n 1)
-
-# Fetch phpMyAdmin version
-phpmyadmin_latest_version=$(curl -sSL https://www.phpmyadmin.net/downloads/ | grep "phpMyAdmin" | grep -oP 'phpMyAdmin \d+\.\d+\.\d+' | head -n 1)
-
-# Fetch Nginx version
-nginx_latest_version=$(curl -sSL https://nginx.org/en/download.html | grep "Mainline version" | awk -F'[>|<]' '{print $3}' | head -n 1)
-
 # Step 3: Specify the versions of software packages
 # You can manually specify the versions here
 mariadb_versions=("10.11" "10.6" "10.5")
