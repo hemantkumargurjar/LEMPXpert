@@ -82,6 +82,8 @@ while true; do
             ;;
         3)
             echo "Exiting LEMPXpert. Goodbye!"
+            # Remove temporary folders
+            rm -rf "$temp_dir"  # Remove the temporary directory used for script download
             if [ -f "lemp_manager.sh" ]; then
                 rm -f "lemp_manager.sh"
             fi
