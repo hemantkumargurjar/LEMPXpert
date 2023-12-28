@@ -73,7 +73,11 @@ chmod +x mariadb_repo_setup
 yum -y update
 
 # Install EPEL repository and yum-utils
-yum -y install epel-release yum-utils
+groupadd nginx
+useradd -g nginx -d /dev/null -s /sbin/nologin nginx
+sudo yum -y groupinstall "Development Tools"
+sudo yum -y install yum-utils gcc gcc-c++ pcre pcre-devel sshpass zlib zlib-devel tar exim mailx autoconf bind-utils GeoIP GeoIP-devel ca-certificates perl socat perl-devel perl-ExtUtils-Embed make automake perl-libwww-perl tree virt-what openssl-devel openssl which libxml2-devel libxml2 libxslt libxslt-devel gd gd-devel iptables* openldap openldap-devel curl curl-devel diffutils pkgconfig sudo lsof pkgconfig libatomic_ops-devel gperftools gperftools-devel 
+sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron
 
 # Install Remi repository
 yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
