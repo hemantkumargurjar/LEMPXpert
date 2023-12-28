@@ -25,15 +25,37 @@ display_menu() {
 }
 
 install_lempxpert() {
-    # Implement installation logic here
-    echo "Installing LEMPXpert..."
-    # Add your installation steps here
+    # Create a temporary directory for storing the downloaded script
+    temp_dir=$(mktemp -d)
+    temp_script="$temp_dir/install_lempxpert.sh"
+    
+    # Download the install_lempxpert.sh script
+    echo "Downloading LEMPXpert installer..."
+    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/install_lempxpert.sh?token=GHSAT0AAAAAACLTCGJQMRLGQCGCFPCWGJTSZMN3WIQ
+    
+    # Execute the downloaded script
+    chmod +x "$temp_script"
+    bash "$temp_script"
+    
+    # Clean up the temporary directory
+    rm -rf "$temp_dir"
 }
 
 test_server() {
-    # Implement server testing logic here
-    echo "Testing Server..."
-    # Add your server testing steps here
+    # Create a temporary directory for storing the downloaded script
+    temp_dir=$(mktemp -d)
+    temp_script="$temp_dir/test_server.sh"
+    
+    # Download the test_server.sh script
+    echo "Downloading Test Server script..."
+    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/test_server.sh?token=GHSAT0AAAAAACLTCGJQMRLGQCGCFPCWGJTSZMN3WIQ
+    
+    # Execute the downloaded script
+    chmod +x "$temp_script"
+    bash "$temp_script"
+    
+    # Clean up the temporary directory
+    rm -rf "$temp_dir"
 }
 
 while true; do
