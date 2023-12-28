@@ -82,6 +82,9 @@ while true; do
             ;;
         3)
             echo "Exiting LEMPXpert. Goodbye!"
+            if [ -f "lemp_manager.sh" ]; then
+                rm -f "lemp_manager.sh"
+            fi
             exit 0
             ;;
         *)
