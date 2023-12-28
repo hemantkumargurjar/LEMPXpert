@@ -31,24 +31,62 @@ phpmyadmin_latest_version=$(curl -sSL https://www.phpmyadmin.net/downloads/ | gr
 # Fetch Nginx version
 nginx_latest_version=$(curl -sSL https://nginx.org/en/download.html | grep "Mainline version" | awk -F'[>|<]' '{print $3}' | head -n 1)
 
-# Display the latest versions for user selection
-echo "Select software versions to install:"
-echo "1. MariaDB (Latest: $mariadb_latest_version)"
-echo "2. PHP (Latest: $php_latest_version)"
-echo "3. phpMyAdmin (Latest: $phpmyadmin_latest_version)"
-echo "4. Nginx (Latest: $nginx_latest_version)"
+# Step 3: Specify the versions of software packages
+# You can manually specify the versions here
+mariadb_versions=("10.11" "10.6" "10.5")
+php_versions=("8.3" "8.2" "8.1" "8.0" "7.4")
+phpmyadmin_versions=("5.2.1")
+nginx_versions=("1.25" "1.24")
 
-# Read user selections
-read -p "Enter the number to select MariaDB version: " mariadb_selection
-read -p "Enter the number to select PHP version: " php_selection
-read -p "Enter the number to select phpMyAdmin version: " phpmyadmin_selection
-read -p "Enter the number to select Nginx version: " nginx_selection
+# Display the available versions
+echo "Available versions:"
+echo "MariaDB: ${mariadb_versions[@]}"
+echo "PHP: ${php_versions[@]}"
+echo "phpMyAdmin: ${phpmyadmin_versions[@]}"
+echo "Nginx: ${nginx_versions[@]}"
+
+# Prompt the user to select versions
+read -p "Select the MariaDB version: " mariadb_version
+read -p "Select the PHP version: " php_version
+read -p "Select the phpMyAdmin version: " phpmyadmin_version
+read -p "Select the Nginx version: " nginx_version
+
+# Check if the selected versions are valid
+if ! [[ " ${mariadb_versions[@]} " =~ " ${mariadb_version} " ]]; then
+    echo "Invalid MariaDB version. Please select from: ${mariadb_versions[@]}"
+    exit 1
+fi
+
+if ! [[ " ${php_versions[@]} " =~ " ${php_version} " ]]; then
+    echo "Invalid PHP version. Please select from: ${php_versions[@]}"
+    exit 1
+fi
+
+if ! [[ " ${phpmyadmin_versions[@]} " =~ " ${phpmyadmin_version} " ]]; then
+    echo "Invalid phpMyAdmin version. Please select from: ${phpmyadmin_versions[@]}"
+    exit 1
+fi
+
+if ! [[ " ${nginx_versions[@]} " =~ " ${nginx_version} " ]]; then
+    echo "Invalid Nginx version. Please select from: ${nginx_versions[@]}"
+    exit 1
+fi
 
 # Step 4: Install LEMP stack and required packages
 echo "Installing LEMP stack and required packages..."
 
-# Install MariaDB with the selected version
-yum -y install mariadb-server-$mariadb_selection
+# Download the MariaDB script to configure access to MariaDB repositories
+wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+chmod +x mariadb_repo_setup
+
+# Use the script to add MariaDB repositories and install MariaDB from the user-selected version
+./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
+
+# Install MariaDB server
+yum -y install mariadb-server mariadb-backup
+
+# Set the root password for MariaDB
+mysqladmin -u root password "$mariadb_password"
 
 # Install PHP with the selected version and required extensions
 yum -y install php-$php_selection php-fpm-$php_selection php-mysqlnd-$php_selection php-opcache-$php_selection php-gd-$php_selection php-json-$php_selection php-mbstring-$php_selection php-mcrypt-$php_selection php-xml-$php_selection
