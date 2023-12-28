@@ -1,12 +1,21 @@
 #!/bin/bash
 
+# Install figlet if not already installed
+if ! command -v figlet &> /dev/null; then
+    echo "Installing figlet..."
+    sudo yum -y install epel-release
+    sudo yum -y install figlet
+fi
+
+# Clear the terminal
+clear
+
 # ASCII art logo using figlet
 logo_text=$(figlet "LEMPXpert")
 
 welcome_message="Welcome to LEMPXpert - Your LEMP Server Manager"
 
 display_menu() {
-    clear
     echo "$logo_text"
     echo "$welcome_message"
     echo "Select an option:"
