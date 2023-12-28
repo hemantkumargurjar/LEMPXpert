@@ -28,6 +28,11 @@ install_lempxpert() {
     # Create a temporary directory for storing the downloaded script
     temp_dir=$(mktemp -d)
     temp_script="$temp_dir/install_lempxpert.sh"
+
+    # Check if the script file already exists and remove it if it does
+    if [ -f "$temp_script" ]; then
+        rm -f "$temp_script"
+    fi
     
     # Download the install_lempxpert.sh script
     echo "Downloading LEMPXpert installer..."
@@ -46,9 +51,14 @@ test_server() {
     temp_dir=$(mktemp -d)
     temp_script="$temp_dir/test_server.sh"
     
+    # Check if the script file already exists and remove it if it does
+    if [ -f "$temp_script" ]; then
+        rm -f "$temp_script"
+    fi
+    
     # Download the test_server.sh script
     echo "Downloading Test Server script..."
-    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/test_server/test_server.sh?token=GHSAT0AAAAAACLTCGJRN3TKW4S43SCF6WL6ZMN35LQ
+    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/test_server.sh?token=GHSAT0AAAAAACLTCGJQMRLGQCGCFPCWGJTSZMN3WIQ
     
     # Execute the downloaded script
     chmod +x "$temp_script"
@@ -57,6 +67,7 @@ test_server() {
     # Clean up the temporary directory
     rm -rf "$temp_dir"
 }
+
 
 while true; do
     display_menu
