@@ -69,6 +69,15 @@ chmod +x mariadb_repo_setup
 # Use the script to add MariaDB repositories and install MariaDB from the user-selected version
 ./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
 
+#First do server update
+yum -y update
+
+# Install EPEL repository and yum-utils
+yum -y install epel-release yum-utils
+
+# Install Remi repository
+yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+
 # Install MariaDB server
 yum -y install mariadb-server mariadb-backup
 
