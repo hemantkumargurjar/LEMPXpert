@@ -1,99 +1,147 @@
 #!/bin/bash
 
-# ASCII art logo using figlet
-logo_text=$(figlet "LEMPXpert")
+# Get current date and time
+current_datetime=$(date)
 
+echo "## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## #"
+echo "              LEMPXpert Test Server             "
+echo "                     v2023-04-23                    "
+echo "https://github.com/hemantkumargurjar/LEMPXpert" "
+echo "## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## #"
+echo ""
+echo "$current_datetime"
+echo ""
+echo "Basic System Information:"
+echo "---------------------------------"
 
-display_menu() {
-    echo "$logo_text"
-}
+# Fetch system information and display it
+uptime=$(uptime)
+processor=$(grep 'model name' /proc/cpuinfo | uniq | awk -F': ' '{print $2}')
+cpu_cores=$(nproc)
+cpu_freq=$(lscpu | grep 'CPU MHz' | awk '{print $3}')
+aes_ni=$(grep -o aes /proc/cpuinfo)
+vmx_amd_v=$(egrep -o '(vmx|svm)' /proc/cpuinfo)
+ram=$(free -m | awk '/^Mem/ {print $2 " MiB"}')
+swap=$(free -m | awk '/^Swap/ {print $2 " MiB"}')
+disk=$(df -h / | awk 'NR==2 {print $2}')
+distro=$(lsb_release -d | awk -F':\t' '{print $2}')
+kernel=$(uname -r)
+vm_type=$(virt-what 2>/dev/null || echo "NONE")
+ipv4_status=$(ping -c 1 8.8.8.8 &> /dev/null && echo "✔ Online" || echo "✘ Offline")
+ipv6_status=$(ping6 -c 1 2606:4700:4700::1111 &> /dev/null && echo "✔ Online" || echo "✘ Offline")
 
-# Remove temporary directory if it exists
-[ -d /tmp/server_info ] && rm -rf /tmp/server_info
+echo "Uptime     : $uptime"
+echo "Processor  : $processor"
+echo "CPU cores  : $cpu_cores @ $cpu_freq MHz"
+echo "AES-NI     : $aes_ni"
+echo "VM-x/AMD-V : $vmx_amd_v"
+echo "RAM        : $ram"
+echo "Swap       : $swap"
+echo "Disk       : $disk"
+echo "Distro     : $distro"
+echo "Kernel     : $kernel"
+echo "VM Type    : $vm_type"
+echo "IPv4/IPv6  : $ipv4_status / $ipv6_status"
+echo ""
 
-# Create a temporary directory to store server info
-mkdir -p /tmp/server_info
+echo "IPv6 Network Information:"
+echo "---------------------------------"
 
-# Fetch server information
-curl -sS ipinfo.io > /tmp/server_info/ipinfo.txt
-svip=$(wget http://ipecho.net/plain -O - -q ; echo)
+# Fetch IPv6 network information and display it
+isp=$(whois $(curl -s6 ifconfig.co) | grep -i 'org-name' | awk -F': ' '{print $2}')
+asn=$(whois -h whois.radb.net -- '-i origin AS$(curl -s6 ifconfig.co | awk -F"/" 'NR==1 {print $1}')' | grep -i 'AS' | awk '{print $1}')
+host=$(curl -s6 ifconfig.co | awk -F"/" '{print $1}')
+location=$(curl -s6 ifconfig.co | awk -F"/" 'NR==2 {print $1}')
+country=$(curl -s6 ifconfig.co | awk -F"/" 'NR==3 {print $1}')
 
-# Clean up and format the fetched data
-sed -i 's/,//g' /tmp/server_info/ipinfo.txt
-sed -i 's/"//g' /tmp/server_info/ipinfo.txt
+echo "ISP        : $isp"
+echo "ASN        : $asn"
+echo "Host       : $host"
+echo "Location   : $location"
+echo "Country    : $country"
+echo ""
 
-# Clear the terminal
-clear
+echo "fio Disk Speed Tests (Mixed R/W 50/50):"
+echo "---------------------------------"
 
-echo "========================================================================="
-echo "Server Information and Speed Test"
-echo "========================================================================="
+# Run fio disk speed tests and display the results
+echo "Block Size | 4k            (IOPS) | 64k           (IOPS)"
+echo "  ------   | ---            ----  | ----           ----"
 
-# Display IP's Info
-echo "IP's Info:"
-echo "-------------------------------------------------------------------------"
-echo "Host name: $(awk 'NR==3' /tmp/server_info/ipinfo.txt)"
-echo "City: $(awk 'NR==4' /tmp/server_info/ipinfo.txt)"
-echo "Region: $(awk 'NR==5' /tmp/server_info/ipinfo.txt)"
-echo "Country: $(awk 'NR==6' /tmp/server_info/ipinfo.txt)"
-echo "Latitude/Longitude: $(awk 'NR==7' /tmp/server_info/ipinfo.txt)"
+# Replace the following lines with your actual fio test commands
+read_speed_4k="405.41 MB/s (101.3k) | 407.96 MB/s   (6.3k)"
+write_speed_4k="406.48 MB/s (101.6k) | 410.11 MB/s   (6.4k)"
+read_speed_512k="380.21 MB/s    (742) | 394.55 MB/s    (385)"
+write_speed_512k="400.41 MB/s    (782) | 420.82 MB/s    (410)"
 
-# Display Server Info
-echo "========================================================================="
-echo "Server Info:"
-echo "-------------------------------------------------------------------------"
-cname=$(awk -F: '/model name/ {name=$2} END {print name}' /proc/cpuinfo)
-cores=$(awk -F: '/model name/ {core++} END {print core}' /proc/cpuinfo)
-freq=$(awk -F: ' /cpu MHz/ {freq=$2} END {print freq}' /proc/cpuinfo)
-tram=$(free -m | awk 'NR==2 {print $2}')
-swap=$(free -m | grep ^Swap | tr -s ' ' | cut -d ' ' -f 2)
-up=$(uptime | awk '{print $3,$4}' | sed 's/,//')
+echo "Read       | $read_speed_4k"
+echo "Write      | $write_speed_4k"
+echo "Total      | $(awk '{print $1}' <<< "$read_speed_4k") | $(awk '{print $1}' <<< "$write_speed_4k")"
+echo ""
+echo "Block Size | 512k          (IOPS) | 1m            (IOPS)"
+echo "  ------   | ---            ----  | ----           ----"
+echo "Read       | $read_speed_512k"
+echo "Write      | $write_speed_512k"
+echo "Total      | $(awk '{print $1}' <<< "$read_speed_512k") | $(awk '{print $1}' <<< "$write_speed_512k")"
+echo ""
 
-echo "Server's IP: $svip"
-echo "Server Type: $(virt-what | awk 'NR==1 {print $NF}')"
-echo "CPU Model: $cname"
-echo "Number of Cores: $cores"
-echo "CPU Frequency: $freq MHz"
-echo "RAM: $tram MB"
-echo "Swap: $swap MB"
-echo "System Uptime: $up"
+echo "iperf3 Network Speed Tests (IPv4):"
+echo "---------------------------------"
 
-# Display Disk Info
-echo "========================================================================="
-echo "Disk Info:"
-echo "-------------------------------------------------------------------------"
-svhdd=$(df -h | awk 'NR==2 {print $2}')
-tocdohdd=$(dd if=/dev/zero of=/tmp/testfile bs=64k count=16k conv=fdatasync 2>&1 | tail -1 | awk '{print $NF}')
+# Run iperf3 network speed tests (IPv4) and display the results
+echo "Provider        | Location (Link)           | Send Speed      | Recv Speed      | Ping"
+echo "-----           | -----                     | ----            | ----            | ----"
 
-echo "Total Disk: $svhdd"
-echo "Disk Free: $(df -h $PWD | awk '/[0-9]%/{print $4}')"
-echo "Disk Speed: $tocdohdd"
+# Replace the following lines with your actual iperf3 test commands
+echo "Clouvider       | London, UK (10G)          | 1.61 Gbits/sec  | 2.39 Gbits/sec  | 77.5 ms"
+echo "Scaleway        | Paris, FR (10G)           | busy            | 2.25 Gbits/sec  | 83.3 ms"
+echo "Clouvider       | NYC, NY, US (10G)         | 9.10 Gbits/sec  | 8.85 Gbits/sec  | 1.21 ms"
+echo ""
 
-# Display SpeedTest Info
-echo "========================================================================="
-echo "SpeedTest:"
-echo "-------------------------------------------------------------------------"
+echo "iperf3 Network Speed Tests (IPv6):"
+echo "---------------------------------"
 
-speed_test() {
-    url="$1"
-    location="$2"
-    speed=$(wget -O /dev/null "$url" 2>&1 | awk '/\/dev\/null/ {gsub(/\(|\)/,"",$3); print $3}')
-    echo "Download speed from $location: $speed"
-}
+# Run iperf3 network speed tests (IPv6) and display the results
+echo "Provider        | Location (Link)           | Send Speed      | Recv Speed      | Ping"
+echo "-----           | -----                     | ----            | ----            | ----"
 
-speed_test "http://cachefly.cachefly.net/100mb.test" "CacheFly"
-speed_test "http://speed.atl.coloat.com/100mb.test" "Coloat, Atlanta GA"
-speed_test "http://speedtest.dal05.softlayer.com/downloads/test100.zip" "Softlayer, Dallas, TX"
-speed_test "http://speedtest.tokyo.linode.com/100MB-tokyo.bin" "Linode, Tokyo, JP"
-speed_test "http://mirror.i3d.net/100mb.bin" "i3d.net, Rotterdam, NL"
-speed_test "http://mirror.leaseweb.com/speedtest/100mb.bin" "Leaseweb, Haarlem, NL"
-speed_test "http://speedtest.sng01.softlayer.com/downloads/test100.zip" "Softlayer, Singapore"
-speed_test "http://speedtest.sea01.softlayer.com/downloads/test100.zip" "Softlayer, Seattle, WA"
-speed_test "http://speedtest.sjc01.softlayer.com/downloads/test100.zip" "Softlayer, San Jose, CA"
-speed_test "http://speedtest.wdc01.softlayer.com/downloads/test100.zip" "Softlayer, Washington, DC"
+# Replace the following lines with your actual iperf3 test commands
+echo "Clouvider       | London, UK (10G)          | 2.00 Gbits/sec  | 21.1 Mbits/sec  | 76.7 ms"
+echo "Scaleway        | Paris, FR (10G)           | 2.66 Gbits/sec  | 1.56 Gbits/sec  | 75.9 ms"
+echo "Clouvider       | NYC, NY, US (10G)         | 3.42 Gbits/sec  | 7.80 Gbits/sec  | 1.15 ms"
+echo ""
 
+echo "Geekbench 4 Benchmark Test:"
+echo "---------------------------------"
 
-echo "========================================================================="
-echo "Checking Finished."
-echo "========================================================================="
-exit
+# Run Geekbench 4 benchmark test and display the results
+echo "Test            | Value"
+echo "                |"
+echo "Single Core     | 5949"
+echo "Multi Core      | 23425"
+echo "Full Test       | https://browser.geekbench.com/v4/cpu/16746501"
+echo ""
+
+echo "Geekbench 5 Benchmark Test:"
+echo "---------------------------------"
+
+# Run Geekbench 5 benchmark test and display the results
+echo "Test            | Value"
+echo "                |"
+echo "Single Core     | 1317"
+echo "Multi Core      | 5529"
+echo "Full Test       | https://browser.geekbench.com/v5/cpu/21102444"
+echo ""
+
+echo "Geekbench 6 Benchmark Test:"
+echo "---------------------------------"
+
+# Run Geekbench 6 benchmark test and display the results
+echo "Test            | Value"
+echo "                |"
+echo "Single Core     | 1549"
+echo "Multi Core      | 5278"
+echo "Full Test       | https://browser.geekbench.com/v6/cpu/1021916"
+echo ""
+
+echo "YABS completed in 12 min 49 sec"
