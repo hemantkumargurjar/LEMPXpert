@@ -113,32 +113,50 @@ systemctl restart nginx
 
 # ... Previous steps ...
 
+#!/bin/bash
+
+# ... Previous steps ...
+
 # Step 6: Install Linux Dash web dashboard
 echo "Installing Linux Dash web dashboard..."
 
 # Define the Linux Dash installation directory
-linux_dash_dir="/var/www/html/lempxpert"
+linux_dash_dir="/var/www/html/lempxpert/linux-dash"
 
 # Create the Linux Dash directory
 mkdir -p "$linux_dash_dir"
 
 # Clone the Linux Dash repository from GitHub
-git clone https://github.com/tariqkhan-co-uk/linux-dash.git "$linux_dash_dir"
+git clone --depth 1 https://github.com/afaqurk/linux-dash.git "$linux_dash_dir"
 
-# Configure Nginx to serve Linux Dash
+# Modify the Linux Dash configuration
+linux_dash_config="$linux_dash_dir/app/server/config.json"
+cat <<EOL > "$linux_dash_config"
+{
+  "accounts": [
+    {
+      "user": "$username",
+      "pass": "$linux_dash_password"
+    }
+  ]
+}
+EOL
+
+# Configure Nginx to serve Linux Dash and point the main server to /home/lempxpert.server/public
 linux_dash_nginx_conf="/etc/nginx/conf.d/linux-dash.conf"
 
 cat <<EOL > "$linux_dash_nginx_conf"
 server {
-    listen 80;
+    listen 8080;  # Change this to your desired port
     server_name lempxpert.example.com;  # Change this to your desired domain or IP
-    root $linux_dash_dir;
 
-    access_log /var/log/nginx/linux-dash.access.log;
-    error_log /var/log/nginx/linux-dash.error.log;
+    root $linux_dash_dir/app/server;
+
+    access_log /var/log/nginx/lempxpert-linux-dash.access.log;
+    error_log /var/log/nginx/lempxpert-linux-dash.error.log;
 
     location / {
-        index index.html;
+        index index.html index.php;
         try_files \$uri \$uri/ /index.html;
     }
 
@@ -148,18 +166,29 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
     }
 
-    auth_basic "Restricted Access";
-    auth_basic_user_file /etc/nginx/.htpasswd;  # Use the provided password file
+    # ... Other Nginx settings ...
+
+}
+
+server {
+    listen 80;  # Default HTTP port
+    server_name $server_ip;  # Use the server's IP address
+
+    root /home/lempxpert.server/public;  # Point to /home/lempxpert.server/public
+
+    access_log /var/log/nginx/lempxpert.access.log;
+    error_log /var/log/nginx/lempxpert.error.log;
+
+    # ... Other Nginx settings for the main server ...
+
 }
 EOL
 
 # Restart Nginx to apply the new configuration
-systemctl restart nginx
+systemctl restart nginx  # Assuming you're using Nginx
 
 # ... Continue with the finalization step ...
 
 # Step 7: Finalize the setup
 echo "LEMPXpert installation completed."
 
-# Step 7: Finalize the setup
-echo "LEMPXpert installation completed."
