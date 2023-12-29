@@ -223,7 +223,7 @@ module_hotfixes=true
 EOF
 
     # Enable mainline or stable repo based on user input
-    if [ "$nginx_version" == "mainline" ]; then
+    if [ "$nginx_version_branch" == "mainline" ]; then
         sudo yum-config-manager --enable nginx-mainline
     fi
     
@@ -274,7 +274,7 @@ EOF
 }
 
 # Main script
-read -p "Enter 'stable' or 'mainline' to choose the Nginx version: " nginx_version
+read -p "Enter 'stable' or 'mainline' to choose the Nginx version: " nginx_version_branch
 root_dir = "/home/lempxpert.server/public"  # Change this to your desired root directory path
 mkdir -p "$root_dir"
 # Validate the root directory path
@@ -287,7 +287,7 @@ fi
 server_ip=$(curl -4 ifconfig.co)
 
 # Install Nginx with the specified version
-install_nginx "$nginx_version"
+install_nginx "$nginx_version_branch"
 
 # Configure the root website
 configure_root_website "$root_dir" "$server_ip"
