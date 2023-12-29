@@ -85,6 +85,9 @@ if ! [[ " ${nginx_versions[@]} " =~ " ${nginx_version} " ]]; then
     exit 1
 fi
 
+############################################
+# Install LEMP stack and required packages
+############################################
 # Step 4: Install LEMP stack and required packages
 echo "Installing LEMP stack and required packages..."
 log_message "Installing LEMP stack and required packages"
@@ -97,7 +100,11 @@ groupadd nginx
 useradd -g nginx -d /dev/null -s /sbin/nologin nginx
 sudo yum -y groupinstall "Development Tools"
 sudo yum -y install yum-utils gcc gcc-c++ pcre pcre-devel sshpass zlib zlib-devel tar exim mailx autoconf bind-utils GeoIP GeoIP-devel ca-certificates perl socat perl-devel perl-ExtUtils-Embed make automake perl-libwww-perl tree virt-what openssl-devel openssl which libxml2-devel libxml2 libxslt libxslt-devel gd gd-devel iptables* openldap openldap-devel curl curl-devel diffutils pkgconfig sudo lsof pkgconfig libatomic_ops-devel gperftools gperftools-devel 
-sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron
+sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron nano
+
+############################################
+# Install MariaDB
+############################################
 
 # Check if MariaDB is already installed
 if ! command -v mysql &> /dev/null; then
@@ -126,6 +133,9 @@ fi
 # Set the root password for MariaDB
 mysqladmin -u root -p -S /var/lib/mysql/mysql.sock "$mariadb_password"
 
+############################################
+# Install PHP
+############################################
 # Determine CentOS version and extract the major version number
 centos_version=$(awk '{print $4}' /etc/centos-release | cut -d '.' -f1)
 
@@ -176,32 +186,114 @@ if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" 
     sudo dnf install -y "$desired_version" || sudo yum install -y "$desired_version"
 fi
 
-# Verify the installation
-php$desired_version --version
-
 echo "PHP $desired_version has been installed successfully."
 log_message "PHP $desired_version has been installed successfully"
 
-# Add PHP to the user's PATH
-user_shell_rc_file="$HOME/.bashrc"  # You can change this to the appropriate shell profile file (e.g., .bash_profile)
+# Create a symbolic link to PHP binary in a directory in PATH
 php_bin_dir="/usr/bin"
+sudo ln -sf "$php_bin_dir/$desired_version" "$php_bin_dir/php"
 
-add_php_to_path() {
-    local php_bin_dir="$1"
-    local user_shell_rc_file="$2"
+echo "PHP has been added to your PATH. You may need to open a new terminal for the changes to take effect."
+log_message "PHP has been added to PATH"
+
+################################################
+# Install Nginx with the selected version
+################################################
+# Install Nginx with the selected version
+# Function to install Nginx with the specified version
+install_nginx() {
     
-    if ! grep -q "export PATH=.*$php_bin_dir" "$user_shell_rc_file"; then
-        echo "export PATH=\"$php_bin_dir:\$PATH\"" >> "$user_shell_rc_file"
+    # Add the Nginx repository
+    sudo tee /etc/yum.repos.d/nginx.repo <<EOF
+[nginx-stable]
+name=nginx stable repo
+baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://nginx.org/keys/nginx_signing.key
+module_hotfixes=true
+
+[nginx-mainline]
+name=nginx mainline repo
+baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=https://nginx.org/keys/nginx_signing.key
+module_hotfixes=true
+EOF
+
+    # Enable mainline or stable repo based on user input
+    if [ "$nginx_version" == "mainline" ]; then
+        sudo yum-config-manager --enable nginx-mainline
+    fi
+    
+    # Install Nginx
+    sudo yum -y install nginx-$nginx_version
+    
+    # Enable and start Nginx
+    sudo systemctl enable nginx
+    sudo systemctl start nginx
+
+     # Add Nginx binary directory to PATH
+    if ! grep -q "/usr/sbin/nginx" /etc/environment; then
+        echo 'PATH="$PATH:/usr/sbin"' | sudo tee -a /etc/environment
     fi
 }
 
-add_php_to_path "$php_bin_dir" "$user_shell_rc_file"
+# Function to configure the root website
+configure_root_website() {
+    local root_dir="$1"
+    local server_ip="$2"
+    
+    # Create the root directory
+    sudo mkdir -p "$root_dir"
+    
+    # Create a sample index.html
+    echo "<html><body><h1>Welcome to LEMPXpert.com</h1></body></html>" | sudo tee "$root_dir/index.html" > /dev/null
+    
+    # Set proper permissions
+    sudo chown -R nginx:nginx "$root_dir"
+    
+    # Configure the Nginx server block for the root website
+    sudo tee /etc/nginx/conf.d/lempxpert.conf <<EOF
+server {
+    listen 80;
+    server_name $server_ip;
 
-echo "PHP has been added to your PATH. You may need to open a new terminal or run 'source $user_shell_rc_file' for the changes to take effect."
-log_message "PHP has been added to PATH"
+    root $root_dir;
+    index index.html;
 
-# Install Nginx with the selected version
-yum -y install nginx-$nginx_version
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+EOF
+
+    # Reload Nginx to apply the configuration
+    sudo systemctl reload nginx
+}
+
+# Main script
+read -p "Enter 'stable' or 'mainline' to choose the Nginx version: " nginx_version
+root_dir = "/home/lempxpert.server/public"  # Change this to your desired root directory path
+mkdir -p "$root_dir"
+# Validate the root directory path
+if [ -z "$root_dir" ] || [ ! -d "$root_dir" ]; then
+    echo "Invalid root directory path. Please provide a valid directory path."
+    exit 1
+fi
+
+# Get the server's IPv4 address
+server_ip=$(curl -4 ifconfig.co)
+
+# Install Nginx with the specified version
+install_nginx "$nginx_version"
+
+# Configure the root website
+configure_root_website "$root_dir" "$server_ip"
+
+echo "LEMPXpert.com has been configured with Nginx $nginx_version."
+# Nginx Installation Finsihed
 
 # Start and enable services
 systemctl start mariadb
@@ -213,53 +305,69 @@ systemctl enable php-fpm
 systemctl start nginx
 systemctl enable nginx
 
+############################################
+            #Install phpMyAdmin
+############################################
+
 # Step 5: Set up phpMyAdmin
 echo "Setting up phpMyAdmin..."
 log_message "Setting up phpMyAdmin"
 
+phpmyadmin_dir="/home/lempxpert.server/private/phpmyadmin"
+temp_dir_php=$(mktemp -d)
+
+#Install phpMyAdmin
+wget -P "$temp_dir_php" https://files.phpmyadmin.net/phpMyAdmin/${phpmyadmin_version}/phpMyAdmin-${phpmyadmin_version}-all-languages.tar.gz
+
+#Configure phpMyAdmin
+config_file="/etc/phpMyAdmin/config.inc.php"
+
+if [ -f "$config_file" ]; then
+    # Backup existing configuration
+    sudo mv "$config_file" "${config_file}.bak"
+fi
+
+# Generate a random blowfish_secret for enhanced security
+blowfish_secret=$(openssl rand -base64 32)
+
+# Create a new phpMyAdmin configuration file
+sudo tee "$config_file" > /dev/null <<EOL
+<?php
+\$cfg['blowfish_secret'] = '$blowfish_secret';
+\$cfg['Servers'][1]['host'] = 'localhost';
+\$cfg['Servers'][1]['port'] = '3306';
+\$cfg['Servers'][1]['socket'] = '';
+\$cfg['Servers'][1]['connect_type'] = 'tcp';
+\$cfg['Servers'][1]['extension'] = 'mysqli';
+\$cfg['Servers'][1]['auth_type'] = 'cookie';
+\$cfg['Servers'][1]['user'] = 'root';
+\$cfg['Servers'][1]['password'] = '$mariadb_password';
+\$cfg['UploadDir'] = '';
+\$cfg['SaveDir'] = '';
+?>
+EOL
+
 # Define the phpMyAdmin server block file path
 nginx_phpmyadmin_conf="/etc/nginx/conf.d/phpmyadmin.conf"
 
-# Create a new Nginx server block for phpMyAdmin
-cat <<EOL > "$nginx_phpmyadmin_conf"
-server {
-    listen $phpmyadmin_port;
-    server_name phpmyadmin.example.com;  # Change this to your desired domain or IP
+# Set proper permissions
+sudo chown root:nginx "$config_file"
+sudo chmod 640 "$config_file"
 
-    root /usr/share/nginx/html/phpmyadmin;
-
-    access_log /var/log/nginx/phpmyadmin.access.log;
-    error_log /var/log/nginx/phpmyadmin.error.log;
-
-    location / {
-        index index.php;
-        try_files \$uri \$uri/ =404;
-    }
-
-    location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-
-    auth_basic "Restricted Access";
-    auth_basic_user_file /etc/nginx/.htpasswd;  # Use the provided password file
-}
-EOL
-
-# Create an .htpasswd file for phpMyAdmin authentication
-htpasswd -cb /etc/nginx/.htpasswd "$username" "$phpmyadmin_password"
+# Step 3: Create a symbolic link for phpMyAdmin in Nginx's web root
+sudo ln -s /home/LEMPXpert.com/private/phpmyadmin /usr/share/nginx/html/phpmyadmin
 
 # Restart Nginx to apply the new configuration
 systemctl restart nginx
 
 # Step 6: Install Linux Dash web dashboard
 echo "Installing Linux Dash web dashboard..."
+echo "You can access phpMyAdmin at: http://$server_ip/phpmyadmin"
 log_message "Installing Linux Dash web dashboard"
+
+############################################
+# Install Linux Dash web dashboard
+############################################
 
 # Define the Linux Dash installation directory
 linux_dash_dir="/var/www/html/lempxpert/linux-dash"
