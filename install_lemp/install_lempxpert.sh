@@ -118,18 +118,19 @@ convert_to_php_package_name() {
     local input_version="$1"
     
     # Remove dots and convert to PHP package format (e.g., 8.3 -> php83, 8.2 -> php82)
-    php_version="${input_version//./}"
-    php_version="$php_version"
-    echo "$php_version"
+    php_version_new="${input_version//./}"
+    php_version_ex="$php_version_new"
+    echo "php$php_version_ex"
 }
 
 # Determine the PHP version to install
+echo "$php_version_ex"
 desired_version=$(convert_to_php_package_name "$php_version")
-
-# Check if the requested PHP version is available
+echo "$desired_version"
+# Install PHP version
 if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" == "9" ]]; then
     sudo dnf install -y "$desired_version" || sudo yum install -y "$desired_version"
-
+echo "$desired_version"
 # Verify the installation
 php$desired_version --version
 
@@ -141,8 +142,6 @@ php_bin_dir="/usr/bin"
 add_php_to_path "$php_bin_dir" "$user_shell_rc_file"
 
 echo "PHP has been added to your PATH. You may need to open a new terminal or run 'source $user_shell_rc_file' for the changes to take effect."
-
-php -v
 
 # Install Nginx with the selected version
 yum -y install nginx-$nginx_selection
