@@ -62,13 +62,6 @@ fi
 # Step 4: Install LEMP stack and required packages
 echo "Installing LEMP stack and required packages..."
 
-# Download the MariaDB script to configure access to MariaDB repositories
-wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
-chmod +x mariadb_repo_setup
-
-# Use the script to add MariaDB repositories and install MariaDB from the user-selected version
-./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
-
 #First do server update
 yum -y update
 
@@ -78,6 +71,19 @@ useradd -g nginx -d /dev/null -s /sbin/nologin nginx
 sudo yum -y groupinstall "Development Tools"
 sudo yum -y install yum-utils gcc gcc-c++ pcre pcre-devel sshpass zlib zlib-devel tar exim mailx autoconf bind-utils GeoIP GeoIP-devel ca-certificates perl socat perl-devel perl-ExtUtils-Embed make automake perl-libwww-perl tree virt-what openssl-devel openssl which libxml2-devel libxml2 libxslt libxslt-devel gd gd-devel iptables* openldap openldap-devel curl curl-devel diffutils pkgconfig sudo lsof pkgconfig libatomic_ops-devel gperftools gperftools-devel 
 sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron
+
+# Download the MariaDB script to configure access to MariaDB repositories
+wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+chmod +x mariadb_repo_setup
+
+# Use the script to add MariaDB repositories and install MariaDB from the user-selected version
+./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
+
+# Install MariaDB server
+yum -y install mariadb-server mariadb-backup
+
+# Set the root password for MariaDB
+mysqladmin -u root -p -S /var/lib/mysql/mysql.sock "$mariadb_password"
 
 # Determine CentOS version and extract the major version number
 centos_version=$(awk '{print $4}' /etc/centos-release | cut -d '.' -f1)
@@ -104,18 +110,21 @@ else
     exit 1
 fi
 
-
-# Install MariaDB server
-yum -y install mariadb-server mariadb-backup
-
-# Set the root password for MariaDB
-mysqladmin -u root -h localhost password "$mariadb_password"
-
 # Install PHP with the selected version and required extensions
 echo "Installing PHP..."
 
+# Function to convert user input to PHP package name format
+convert_to_php_package_name() {
+    local input_version="$1"
+    
+    # Remove dots and convert to PHP package format (e.g., 8.3 -> php83, 8.2 -> php82)
+    php_version="${input_version//./}"
+    php_version="php$php_version"
+    echo "$php_version"
+}
+
 # Determine the PHP version to install
-desired_version="$user_input_version"
+desired_version=$(convert_to_php_package_name "$user_input_version")
 
 # Check if the requested PHP version is available
 if ! yum list available --disablerepo="*" --enablerepo="remi-php$desired_version" | grep -q "php$desired_version"; then
