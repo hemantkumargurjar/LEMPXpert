@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Function to log messages to a file
+log_message() {
+    local message="$1"
+    local log_file="/var/log/lempxpert.log"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$log_file"
+}
+
+# Check if the script is run as root
+if [[ $EUID -ne 0 ]]; then
+    echo "Error: This script must be run as root."
+    log_message "Script run as non-root user"
+    exit 1
+fi
+
 # Step 1: Check if the OS version is supported
 os_version=$(cat /etc/os-release | grep "^VERSION_ID" | cut -d'"' -f2)
 if [ "$(cat /etc/os-release | grep "^ID" | cut -d'"' -f2)" != "centos" ] || \
@@ -7,16 +21,24 @@ if [ "$(cat /etc/os-release | grep "^ID" | cut -d'"' -f2)" != "centos" ] || \
    [ "$(uname -m)" != "x86_64" ]; then
     echo "Error: LEMPXpert does not support this OS version or architecture."
     echo "Your OS version: CentOS $os_version ($(uname -m))"
+    log_message "Unsupported OS version or architecture"
     exit 1
 fi
 
 # Step 2: Ask for user input and save in variables
 read -p "Enter the port for phpMyAdmin access: " phpmyadmin_port
 read -p "Enter your email address: " email_address
-read -p "Enter a password to protect phpMyAdmin access directory: " phpmyadmin_password
+read -p "Enter a password to protect phpMyAdmin access directory: " -s phpmyadmin_password
 username=$(echo "$email_address" | cut -d'@' -f1)
-read -s -p "Enter password for MariaDB: " mariadb_password
+read -p "Enter password for MariaDB: " -s mariadb_password
 echo # Move to the next line
+
+# Validate email address format
+if [[ ! "$email_address" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    echo "Error: Invalid email address format."
+    log_message "Invalid email address format: $email_address"
+    exit 1
+fi
 
 # Step 3: Specify the versions of software packages
 # You can manually specify the versions here
@@ -41,28 +63,33 @@ read -p "Select the Nginx version: " nginx_version
 # Check if the selected versions are valid
 if ! [[ " ${mariadb_versions[@]} " =~ " ${mariadb_version} " ]]; then
     echo "Invalid MariaDB version. Please select from: ${mariadb_versions[@]}"
+    log_message "Invalid MariaDB version: $mariadb_version"
     exit 1
 fi
 
 if ! [[ " ${php_versions[@]} " =~ " ${php_version} " ]]; then
     echo "Invalid PHP version. Please select from: ${php_versions[@]}"
+    log_message "Invalid PHP version: $php_version"
     exit 1
 fi
 
 if ! [[ " ${phpmyadmin_versions[@]} " =~ " ${phpmyadmin_version} " ]]; then
     echo "Invalid phpMyAdmin version. Please select from: ${phpmyadmin_versions[@]}"
+    log_message "Invalid phpMyAdmin version: $phpmyadmin_version"
     exit 1
 fi
 
 if ! [[ " ${nginx_versions[@]} " =~ " ${nginx_version} " ]]; then
     echo "Invalid Nginx version. Please select from: ${nginx_versions[@]}"
+    log_message "Invalid Nginx version: $nginx_version"
     exit 1
 fi
 
 # Step 4: Install LEMP stack and required packages
 echo "Installing LEMP stack and required packages..."
+log_message "Installing LEMP stack and required packages"
 
-#First do server update
+# First do server update
 yum -y update
 
 # Install EPEL repository and yum-utils
@@ -76,6 +103,7 @@ sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cro
 if ! command -v mysql &> /dev/null; then
     # MariaDB is not installed, proceed with installation
     echo "Installing MariaDB server..."
+    log_message "Installing MariaDB server"
 
     # Download the MariaDB script to configure access to MariaDB repositories
     wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
@@ -92,6 +120,7 @@ if ! command -v mysql &> /dev/null; then
 else
     # MariaDB is already installed
     echo "MariaDB is already installed. Skipping installation."
+    log_message "MariaDB is already installed"
 fi
 
 # Set the root password for MariaDB
@@ -103,6 +132,7 @@ centos_version=$(awk '{print $4}' /etc/centos-release | cut -d '.' -f1)
 # Ensure centos_version is an integer
 if ! [[ "$centos_version" =~ ^[0-9]+$ ]]; then
     echo "Failed to determine CentOS version."
+    log_message "Failed to determine CentOS version"
     exit 1
 fi
 
@@ -119,11 +149,13 @@ elif [[ "$centos_version" == "9" ]]; then
     sudo dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
 else
     echo "Unsupported CentOS version: $centos_version"
+    log_message "Unsupported CentOS version: $centos_version"
     exit 1
 fi
 
 # Install PHP with the selected version and required extensions
 echo "Installing PHP..."
+log_message "Installing PHP"
 
 # Function to convert user input to PHP package name format
 convert_to_php_package_name() {
@@ -138,24 +170,38 @@ convert_to_php_package_name() {
 # Determine the PHP version to install
 desired_version=$(convert_to_php_package_name "$php_version")
 echo "$desired_version"
+
 # Install PHP version
 if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" == "9" ]]; then
     sudo dnf install -y "$desired_version" || sudo yum install -y "$desired_version"
 fi
+
 # Verify the installation
 php$desired_version --version
 
 echo "PHP $desired_version has been installed successfully."
+log_message "PHP $desired_version has been installed successfully"
 
 # Add PHP to the user's PATH
 user_shell_rc_file="$HOME/.bashrc"  # You can change this to the appropriate shell profile file (e.g., .bash_profile)
 php_bin_dir="/usr/bin"
+
+add_php_to_path() {
+    local php_bin_dir="$1"
+    local user_shell_rc_file="$2"
+    
+    if ! grep -q "export PATH=.*$php_bin_dir" "$user_shell_rc_file"; then
+        echo "export PATH=\"$php_bin_dir:\$PATH\"" >> "$user_shell_rc_file"
+    fi
+}
+
 add_php_to_path "$php_bin_dir" "$user_shell_rc_file"
 
 echo "PHP has been added to your PATH. You may need to open a new terminal or run 'source $user_shell_rc_file' for the changes to take effect."
+log_message "PHP has been added to PATH"
 
 # Install Nginx with the selected version
-yum -y install nginx-$nginx_selection
+yum -y install nginx-$nginx_version
 
 # Start and enable services
 systemctl start mariadb
@@ -169,6 +215,7 @@ systemctl enable nginx
 
 # Step 5: Set up phpMyAdmin
 echo "Setting up phpMyAdmin..."
+log_message "Setting up phpMyAdmin"
 
 # Define the phpMyAdmin server block file path
 nginx_phpmyadmin_conf="/etc/nginx/conf.d/phpmyadmin.conf"
@@ -176,7 +223,7 @@ nginx_phpmyadmin_conf="/etc/nginx/conf.d/phpmyadmin.conf"
 # Create a new Nginx server block for phpMyAdmin
 cat <<EOL > "$nginx_phpmyadmin_conf"
 server {
-    listen 80;
+    listen $phpmyadmin_port;
     server_name phpmyadmin.example.com;  # Change this to your desired domain or IP
 
     root /usr/share/nginx/html/phpmyadmin;
@@ -210,16 +257,9 @@ htpasswd -cb /etc/nginx/.htpasswd "$username" "$phpmyadmin_password"
 # Restart Nginx to apply the new configuration
 systemctl restart nginx
 
-#!/bin/bash
-
-# ... Previous steps ...
-
-#!/bin/bash
-
-# ... Previous steps ...
-
 # Step 6: Install Linux Dash web dashboard
 echo "Installing Linux Dash web dashboard..."
+log_message "Installing Linux Dash web dashboard"
 
 # Define the Linux Dash installation directory
 linux_dash_dir="/var/www/html/lempxpert/linux-dash"
@@ -292,4 +332,4 @@ systemctl restart nginx  # Assuming you're using Nginx
 
 # Step 7: Finalize the setup
 echo "LEMPXpert installation completed."
-
+log_message "LEMPXpert installation completed"
