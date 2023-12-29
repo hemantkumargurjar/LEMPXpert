@@ -72,15 +72,27 @@ sudo yum -y groupinstall "Development Tools"
 sudo yum -y install yum-utils gcc gcc-c++ pcre pcre-devel sshpass zlib zlib-devel tar exim mailx autoconf bind-utils GeoIP GeoIP-devel ca-certificates perl socat perl-devel perl-ExtUtils-Embed make automake perl-libwww-perl tree virt-what openssl-devel openssl which libxml2-devel libxml2 libxslt libxslt-devel gd gd-devel iptables* openldap openldap-devel curl curl-devel diffutils pkgconfig sudo lsof pkgconfig libatomic_ops-devel gperftools gperftools-devel 
 sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron
 
-# Download the MariaDB script to configure access to MariaDB repositories
-wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
-chmod +x mariadb_repo_setup
+# Check if MariaDB is already installed
+if ! command -v mysql &> /dev/null; then
+    # MariaDB is not installed, proceed with installation
+    echo "Installing MariaDB server..."
 
-# Use the script to add MariaDB repositories and install MariaDB from the user-selected version
-./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
+    # Download the MariaDB script to configure access to MariaDB repositories
+    wget https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+    chmod +x mariadb_repo_setup
 
-# Install MariaDB server
-yum -y install mariadb-server mariadb-backup
+    # Use the script to add MariaDB repositories and install MariaDB from the user-selected version
+    ./mariadb_repo_setup --mariadb-server-version="mariadb-$mariadb_version"
+
+    # Install MariaDB server
+    yum -y install mariadb-server mariadb-backup
+
+    # Set the root password for MariaDB
+    mysqladmin -u root password "$mariadb_password"
+else
+    # MariaDB is already installed
+    echo "MariaDB is already installed. Skipping installation."
+fi
 
 # Set the root password for MariaDB
 mysqladmin -u root -p -S /var/lib/mysql/mysql.sock "$mariadb_password"
@@ -124,13 +136,12 @@ convert_to_php_package_name() {
 }
 
 # Determine the PHP version to install
-echo "$php_version_ex"
 desired_version=$(convert_to_php_package_name "$php_version")
 echo "$desired_version"
 # Install PHP version
 if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" == "9" ]]; then
     sudo dnf install -y "$desired_version" || sudo yum install -y "$desired_version"
-echo "$desired_version"
+fi
 # Verify the installation
 php$desired_version --version
 
