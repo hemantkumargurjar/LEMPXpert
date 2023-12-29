@@ -119,12 +119,12 @@ convert_to_php_package_name() {
     
     # Remove dots and convert to PHP package format (e.g., 8.3 -> php83, 8.2 -> php82)
     php_version="${input_version//./}"
-    php_version="php$php_version"
+    php_version="$php_version"
     echo "$php_version"
 }
 
 # Determine the PHP version to install
-desired_version=$(convert_to_php_package_name "$user_input_version")
+desired_version=$(convert_to_php_package_name "$php_version")
 
 # Check if the requested PHP version is available
 if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" == "9" ]]; then
