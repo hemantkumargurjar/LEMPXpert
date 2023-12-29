@@ -275,7 +275,7 @@ EOF
 
 # Main script
 read -p "Enter 'stable' or 'mainline' to choose the Nginx version: " nginx_version_branch
-$root_dir = "/home/lempxpert.server/public"  # Change this to your desired root directory path
+root_dir="/home/lempxpert.server/public"  
 mkdir -p "$root_dir"
 # Validate the root directory path
 if [ -z "$root_dir" ] || [ ! -d "$root_dir" ]; then
