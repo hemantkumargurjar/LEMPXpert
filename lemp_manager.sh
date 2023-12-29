@@ -36,7 +36,7 @@ install_lempxpert() {
     
     # Download the install_lempxpert.sh script
     echo "Downloading LEMPXpert installer..."
-    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/install_lemp/install_lempxpert.sh?token=GHSAT0AAAAAACLTCGJQYG6BMKI7HBWKD53WZMN6FIA
+    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/install_lemp/install_lempxpert.sh
     
     # Execute the downloaded script
     chmod +x "$temp_script"
@@ -58,7 +58,7 @@ test_server() {
     
     # Download the test_server.sh script
     echo "Downloading Test Server script..."
-    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/test_server/test_server.sh?token=GHSAT0AAAAAACLTCGJRIFZP5LRHE5GE74XMZMN6FNQ
+    curl -sSL -o "$temp_script" https://raw.githubusercontent.com/hemantkumargurjar/LEMPXpert/main/install_lemp/install_php.sh
     
     # Execute the downloaded script
     chmod +x "$temp_script"

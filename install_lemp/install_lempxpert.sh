@@ -79,17 +79,65 @@ sudo yum -y groupinstall "Development Tools"
 sudo yum -y install yum-utils gcc gcc-c++ pcre pcre-devel sshpass zlib zlib-devel tar exim mailx autoconf bind-utils GeoIP GeoIP-devel ca-certificates perl socat perl-devel perl-ExtUtils-Embed make automake perl-libwww-perl tree virt-what openssl-devel openssl which libxml2-devel libxml2 libxslt libxslt-devel gd gd-devel iptables* openldap openldap-devel curl curl-devel diffutils pkgconfig sudo lsof pkgconfig libatomic_ops-devel gperftools gperftools-devel 
 sudo yum -y install unzip zip rsync psmisc syslog-ng-libdbi syslog-ng cronie cronie-anacron
 
-# Install Remi repository
-yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+# Determine CentOS version and extract the major version number
+centos_version=$(awk '{print $4}' /etc/centos-release | cut -d '.' -f1)
+
+# Ensure centos_version is an integer
+if ! [[ "$centos_version" =~ ^[0-9]+$ ]]; then
+    echo "Failed to determine CentOS version."
+    exit 1
+fi
+
+# Enable the corresponding Remi repository based on CentOS version
+if [[ "$centos_version" == "7" ]]; then
+    # Enable Remi repository for CentOS 7
+    sudo yum install -y epel-release
+    sudo yum install -y https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+elif [[ "$centos_version" == "8" ]]; then
+    # Enable Remi repository for CentOS 8
+    sudo dnf install -y https://rpms.remirepo.net/enterprise/remi-release-8.rpm
+elif [[ "$centos_version" == "9" ]]; then
+    # Enable Remi repository for CentOS 9
+    sudo dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
+else
+    echo "Unsupported CentOS version: $centos_version"
+    exit 1
+fi
+
 
 # Install MariaDB server
 yum -y install mariadb-server mariadb-backup
 
 # Set the root password for MariaDB
-mysqladmin -u root password "$mariadb_password"
+mysqladmin -u root -h localhost password "$mariadb_password"
 
 # Install PHP with the selected version and required extensions
-yum -y install php-$php_selection php-fpm-$php_selection php-mysqlnd-$php_selection php-opcache-$php_selection php-gd-$php_selection php-json-$php_selection php-mbstring-$php_selection php-mcrypt-$php_selection php-xml-$php_selection
+echo "Installing PHP..."
+
+# Determine the PHP version to install
+desired_version="$user_input_version"
+
+# Check if the requested PHP version is available
+if ! yum list available --disablerepo="*" --enablerepo="remi-php$desired_version" | grep -q "php$desired_version"; then
+    echo "PHP version $desired_version is not available in the Remi repository."
+    exit 1
+fi
+
+# Install the requested PHP version and required extensions
+sudo dnf install -y "php$desired_version" "php$desired_version-cli" "php$desired_version-fpm" "php$desired_version-mysqlnd" "php$desired_version-opcache" "php$desired_version-gd" "php$desired_version-mbstring" "php$desired_version-json"
+
+# Verify the installation
+php$desired_version --version
+
+echo "PHP $desired_version has been installed successfully."
+
+# Add PHP to the user's PATH
+user_shell_rc_file="$HOME/.bashrc"  # You can change this to the appropriate shell profile file (e.g., .bash_profile)
+php_bin_dir="/usr/bin"
+add_php_to_path "$php_bin_dir" "$user_shell_rc_file"
+
+echo "PHP has been added to your PATH. You may need to open a new terminal or run 'source $user_shell_rc_file' for the changes to take effect."
+
 
 # Install Nginx with the selected version
 yum -y install nginx-$nginx_selection
