@@ -127,13 +127,8 @@ convert_to_php_package_name() {
 desired_version=$(convert_to_php_package_name "$user_input_version")
 
 # Check if the requested PHP version is available
-if ! yum list available --disablerepo="*" --enablerepo="remi-php$desired_version" | grep -q "php$desired_version"; then
-    echo "PHP version $desired_version is not available in the Remi repository."
-    exit 1
-fi
-
-# Install the requested PHP version and required extensions
-sudo dnf install -y "php$desired_version" "php$desired_version-cli" "php$desired_version-fpm" "php$desired_version-mysqlnd" "php$desired_version-opcache" "php$desired_version-gd" "php$desired_version-mbstring" "php$desired_version-json"
+if [[ "$centos_version" == "7" || "$centos_version" == "8" || "$centos_version" == "9" ]]; then
+    sudo dnf install -y "$desired_version" || sudo yum install -y "$desired_version"
 
 # Verify the installation
 php$desired_version --version
@@ -147,6 +142,7 @@ add_php_to_path "$php_bin_dir" "$user_shell_rc_file"
 
 echo "PHP has been added to your PATH. You may need to open a new terminal or run 'source $user_shell_rc_file' for the changes to take effect."
 
+php -v
 
 # Install Nginx with the selected version
 yum -y install nginx-$nginx_selection
